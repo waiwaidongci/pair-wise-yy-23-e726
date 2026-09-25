@@ -1,21 +1,15 @@
-import { mockData } from "../mocks/seedData";
 import type { Lesson } from "../types/Lesson";
+import { STORE_NAMES } from "../db/indexedDb";
+import { dbList, dbSave } from "../db/bootstrap";
+import { writeLog } from "../utils/logger";
 
-const endpoint = "/api/lesson";
-
+/** 课程 API（本地 IndexedDB 模拟） */
 export async function listLesson(): Promise<Lesson[]> {
-  if (typeof fetch !== "undefined" && endpoint.startsWith("/api") && false) {
-    try {
-      const res = await fetch(endpoint);
-      if (res.ok) return await res.json();
-    } catch {
-      // Local mock fallback keeps the UI available during offline review.
-    }
-  }
-  return [...(mockData.lesson as unknown as Lesson[])];
+  return dbList<Lesson>(STORE_NAMES.lesson);
 }
 
-export async function saveLesson(payload: Lesson) {
-  console.info("save Lesson", payload);
-  return payload;
+export async function saveLesson(payload: Lesson): Promise<Lesson> {
+  const saved = await dbSave(STORE_NAMES.lesson, payload);
+  writeLog("Lesson", 1, { title: saved.title });
+  return saved;
 }

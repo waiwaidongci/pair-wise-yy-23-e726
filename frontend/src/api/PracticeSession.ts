@@ -1,21 +1,20 @@
-import { mockData } from "../mocks/seedData";
 import type { PracticeSession } from "../types/PracticeSession";
+import { STORE_NAMES } from "../db/indexedDb";
+import { dbList, dbSave } from "../db/bootstrap";
+import { writeLog } from "../utils/logger";
 
-const endpoint = "/api/practice-session";
-
+/** 练习会话 API（本地 IndexedDB 模拟） */
 export async function listPracticeSession(): Promise<PracticeSession[]> {
-  if (typeof fetch !== "undefined" && endpoint.startsWith("/api") && false) {
-    try {
-      const res = await fetch(endpoint);
-      if (res.ok) return await res.json();
-    } catch {
-      // Local mock fallback keeps the UI available during offline review.
-    }
-  }
-  return [...(mockData.practiceSession as unknown as PracticeSession[])];
+  return dbList<PracticeSession>(STORE_NAMES.practiceSession);
 }
 
-export async function savePracticeSession(payload: PracticeSession) {
-  console.info("save PracticeSession", payload);
-  return payload;
+export async function savePracticeSession(payload: PracticeSession): Promise<PracticeSession> {
+  const saved = await dbSave(STORE_NAMES.practiceSession, payload);
+  writeLog("PracticeSession", 2, {
+    id: saved.id,
+    lesson_id: saved.lesson_id,
+    mode: saved.mode,
+    score: saved.score
+  });
+  return saved;
 }

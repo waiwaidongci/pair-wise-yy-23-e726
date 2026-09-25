@@ -1,54 +1,136 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { createRoot } from "react-dom/client";
-import { routes } from "./router/routes";
-import { mockData } from "./mocks/seedData";
-import { StatusBadge } from "./components/common/StatusBadge";
-import { StatCard } from "./components/common/StatCard";
+import { routes, DEFAULT_ROUTE } from "./router/routes";
+import { useRoute, navigate } from "./router/useRoute";
+import { useIndexedDbStore } from "./hooks/useIndexedDbStore";
+import { useAnswerRecordStore } from "./stores/AnswerRecordStore";
+import { useBrailleSymbolStore } from "./stores/BrailleSymbolStore";
+import { LearnPage } from "./pages/LearnPage";
+import { PracticePage } from "./pages/PracticePage";
+import { MistakesPage } from "./pages/MistakesPage";
+import { ProgressPage } from "./pages/ProgressPage";
+import { groupPendingMistakes } from "./services/mistakesService";
 import "./styles.css";
 
-function Page({ name }: { name: string }) {
-  const entities = Object.entries(mockData);
-  const total = useMemo(() => entities.reduce((sum, [, rows]) => sum + rows.length, 0), [entities]);
-  return <main className="page">
+function PageShell() {
+  const { ready, error } = useIndexedDbStore();
+  const route = useRoute();
+  const records = useAnswerRecordStore((s) => s.rows);
+  const symbols = useBrailleSymbolStore((s) => s.rows);
+
+  const pendingTotal = useMemo(() => {
+    const grouped = groupPendingMistakes(records, symbols);
+    let total = 0;
+    grouped.forEach((list) => {
+      total += list.length;
+    });
+    return total;
+  }, [records, symbols]);
+
+  const queryLesson = Number(route.query.get("lesson") ?? "0") || undefined;
+
+  const renderPage = () => {
+    if (error) {
+      return (
+        <main className="page">
+          <div className="panel empty">
+            <strong>本地数据加载失败</strong>
+            <p>{error}</p>
+            <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+              重新加载
+            </button>
+          </div>
+        </main>
+      );
+    }
+    if (!ready) {
+      return (
+        <main className="page">
+          <div className="panel empty">
+            <strong>正在加载本地盲文数据…</strong>
+            <p>首次打开会把点字与课程写入浏览器 IndexedDB。</p>
+          </div>
+        </main>
+      );
+    }
+    switch (route.path) {
+      case "/learn":
+      case "/":
+        return (
+          <main className="page">
+            <PageHeader title="学习卡片" subtitle="按课程浏览点字卡片，可按难度切换" />
+            <LearnPage />
+          </main>
+        );
+      case "/practice":
+        return (
+          <main className="page">
+            <PageHeader title="练习模式" subtitle="按课程出题，即时判定，答题记录自动保存" />
+            <PracticePage initialLessonId={queryLesson} />
+          </main>
+        );
+      case "/mistakes":
+        return (
+          <main className="page">
+            <PageHeader title="错题本" subtitle="按错误原因归类，复习达标即移走，进度仍保留" />
+            <MistakesPage />
+          </main>
+        );
+      case "/progress":
+        return (
+          <main className="page">
+            <PageHeader title="学习进度" subtitle="课程完成率、正确率与各难度掌握情况" />
+            <ProgressPage />
+          </main>
+        );
+      default:
+        return (
+          <main className="page">
+            <PageHeader title="页面不存在" subtitle="即将返回学习卡片" />
+          </main>
+        );
+    }
+  };
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">
+          盲文点字<br />学习训练器
+        </div>
+        <nav>
+          {routes.map((item) => {
+            const active = route.path === item.route || (route.path === "/" && item.route === DEFAULT_ROUTE);
+            const badge = item.route === "/mistakes" && pendingTotal > 0 ? pendingTotal : null;
+            return (
+              <button key={item.route} className={active ? "active" : ""} onClick={() => navigate(item.route)}>
+                <span>{item.name}</span>
+                {badge !== null ? <em className="nav-badge">{badge}</em> : null}
+              </button>
+            );
+          })}
+        </nav>
+        <p className="sidebar-foot">数据存浏览器本地（IndexedDB），下次打开继续练。</p>
+      </aside>
+      {renderPage()}
+    </div>
+  );
+}
+
+function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
     <section className="page-head">
       <div>
         <p className="eyebrow">braille-trainer</p>
-        <h1>{name}</h1>
-      </div>
-      <StatusBadge value="LOCAL_DATA" />
-    </section>
-    <section className="metrics">
-      <StatCard label="核心模型" value={entities.length} />
-      <StatCard label="本地记录" value={total} />
-      <StatCard label="共享枚举" value={3} />
-    </section>
-    <section className="workbench">
-      <div className="panel wide">
-        <h2>业务数据</h2>
-        <div className="table">
-          {entities.map(([key, rows]) => <article key={key} className="row">
-            <strong>{key}</strong><span>{rows.length} 条</span><StatusBadge value={Object.values(rows[0] ?? {})[1] as string ?? "READY"} />
-          </article>)}
-        </div>
-      </div>
-      <div className="panel">
-        <h2>联动检查</h2>
-        <p>页面、store、API、构造器、日志模板和枚举常量均按提示词拆分，适合评审跨文件修改能力。</p>
+        <h1>{title}</h1>
+        <p className="subtitle">{subtitle}</p>
       </div>
     </section>
-  </main>;
+  );
 }
 
-function App() {
-  const [active, setActive] = useState<string>(routes[0]?.route ?? "/dashboard");
-  const current = routes.find((route) => route.route === active) ?? routes[0];
-  return <div className="shell">
-    <aside>
-      <div className="brand">盲文点字学习训练器</div>
-      <nav>{routes.map((route) => <button key={route.route} className={active === route.route ? "active" : ""} onClick={() => setActive(route.route)}>{route.name}</button>)}</nav>
-    </aside>
-    <Page name={current?.name ?? "工作台"} />
-  </div>;
-}
-
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <PageShell />
+  </React.StrictMode>
+);

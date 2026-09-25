@@ -1,21 +1,26 @@
-import { mockData } from "../mocks/seedData";
 import type { AnswerRecord } from "../types/AnswerRecord";
+import { STORE_NAMES } from "../db/indexedDb";
+import { dbList, dbSave } from "../db/bootstrap";
+import { writeLog } from "../utils/logger";
 
-const endpoint = "/api/answer-record";
-
+/** 答题记录 API（本地 IndexedDB 模拟） */
 export async function listAnswerRecord(): Promise<AnswerRecord[]> {
-  if (typeof fetch !== "undefined" && endpoint.startsWith("/api") && false) {
-    try {
-      const res = await fetch(endpoint);
-      if (res.ok) return await res.json();
-    } catch {
-      // Local mock fallback keeps the UI available during offline review.
-    }
-  }
-  return [...(mockData.answerRecord as unknown as AnswerRecord[])];
+  return dbList<AnswerRecord>(STORE_NAMES.answerRecord);
 }
 
-export async function saveAnswerRecord(payload: AnswerRecord) {
-  console.info("save AnswerRecord", payload);
-  return payload;
+export async function saveAnswerRecord(payload: AnswerRecord): Promise<AnswerRecord> {
+  const saved = await dbSave(STORE_NAMES.answerRecord, payload);
+  writeLog("AnswerRecord", 0, { symbol_id: saved.symbol_id, correct: saved.correct });
+  return saved;
+}
+
+export async function bulkSaveAnswerRecord(payload: AnswerRecord[]): Promise<AnswerRecord[]> {
+  // 逐条写以复用写日志要求
+  return Promise.all(payload.map((row) => saveAnswerRecord(row)));
+}
+
+export async function markAnswerRecordResolved(payload: AnswerRecord): Promise<AnswerRecord> {
+  const saved = await dbSave(STORE_NAMES.answerRecord, { ...payload, resolved: true });
+  writeLog("AnswerRecord", 2, { symbol_id: saved.symbol_id, resolved: true });
+  return saved;
 }
