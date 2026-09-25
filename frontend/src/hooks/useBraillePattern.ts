@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { parsePattern } from "../utils/braille";
 
-export function useBraillePattern<T>(rows: T[] = []) {
-  const [page, setPage] = useState(1);
-  const pageSize = 8;
-  const pageRows = useMemo(() => rows.slice((page - 1) * pageSize, page * pageSize), [rows, page]);
-  return { page, setPage, pageSize, pageRows, total: rows.length };
+export function useBraillePattern(pattern: string) {
+  const dots = useMemo(() => parsePattern(pattern), [pattern]);
+  const activeCount = useMemo(() => dots.filter(Boolean).length, [dots]);
+  return { dots, activeCount };
 }

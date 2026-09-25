@@ -1,21 +1,20 @@
+import { listAll, putOne } from "../utils/localDb";
 import { mockData } from "../mocks/seedData";
+import { LOG_TEMPLATES } from "../constants/logTemplates";
+import { ERROR_MESSAGES } from "../constants/errorMessages";
 import type { Lesson } from "../types/Lesson";
 
-const endpoint = "/api/lesson";
-
 export async function listLesson(): Promise<Lesson[]> {
-  if (typeof fetch !== "undefined" && endpoint.startsWith("/api") && false) {
-    try {
-      const res = await fetch(endpoint);
-      if (res.ok) return await res.json();
-    } catch {
-      // Local mock fallback keeps the UI available during offline review.
-    }
+  try {
+    const rows = await listAll<Lesson>("lesson");
+    return rows.sort((a, b) => a.id - b.id);
+  } catch (error) {
+    console.error(ERROR_MESSAGES.DB_UNAVAILABLE, error);
+    return [...mockData.lesson];
   }
-  return [...(mockData.lesson as unknown as Lesson[])];
 }
 
 export async function saveLesson(payload: Lesson) {
-  console.info("save Lesson", payload);
-  return payload;
+  console.info(LOG_TEMPLATES.Lesson[1], payload);
+  return putOne("lesson", payload);
 }

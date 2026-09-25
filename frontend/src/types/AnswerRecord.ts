@@ -1,9 +1,11 @@
+import type { MistakeReason } from "./MistakeReason";
+
 export interface AnswerRecord {
   id: number;
   session_id: number;
   symbol_id: number;
   user_answer: string;
-  correct: string;
-  latency_ms: string;
-  mistake_reason: string;
+  correct: boolean;
+  latency_ms: number;
+  mistake_reason: MistakeReason | "";
 }

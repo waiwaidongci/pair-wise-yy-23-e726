@@ -1,21 +1,19 @@
+import { listAll, putOne } from "../utils/localDb";
 import { mockData } from "../mocks/seedData";
+import { LOG_TEMPLATES } from "../constants/logTemplates";
+import { ERROR_MESSAGES } from "../constants/errorMessages";
 import type { BrailleSymbol } from "../types/BrailleSymbol";
 
-const endpoint = "/api/braille-symbol";
-
 export async function listBrailleSymbol(): Promise<BrailleSymbol[]> {
-  if (typeof fetch !== "undefined" && endpoint.startsWith("/api") && false) {
-    try {
-      const res = await fetch(endpoint);
-      if (res.ok) return await res.json();
-    } catch {
-      // Local mock fallback keeps the UI available during offline review.
-    }
+  try {
+    return await listAll<BrailleSymbol>("brailleSymbol");
+  } catch (error) {
+    console.error(ERROR_MESSAGES.DB_UNAVAILABLE, error);
+    return [...mockData.brailleSymbol];
   }
-  return [...(mockData.brailleSymbol as unknown as BrailleSymbol[])];
 }
 
 export async function saveBrailleSymbol(payload: BrailleSymbol) {
-  console.info("save BrailleSymbol", payload);
-  return payload;
+  console.info(LOG_TEMPLATES.BrailleSymbol[1], payload);
+  return putOne("brailleSymbol", payload);
 }

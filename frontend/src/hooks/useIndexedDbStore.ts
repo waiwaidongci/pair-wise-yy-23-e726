@@ -1,8 +1,24 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { ensureSeeded } from "../utils/localDb";
 
-export function useIndexedDbStore<T>(rows: T[] = []) {
-  const [page, setPage] = useState(1);
-  const pageSize = 8;
-  const pageRows = useMemo(() => rows.slice((page - 1) * pageSize, page * pageSize), [rows, page]);
-  return { page, setPage, pageSize, pageRows, total: rows.length };
+// 应用启动时确保 IndexedDB 已建库并播种，四个页面共用这份本地数据
+export function useIndexedDbStore() {
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    ensureSeeded()
+      .then(() => {
+        if (alive) setReady(true);
+      })
+      .catch((err) => {
+        if (alive) setError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return { ready, error };
 }

@@ -1,7 +1,9 @@
+import type { PracticeMode } from "./PracticeMode";
+
 export interface PracticeSession {
   id: number;
-  lesson_id: number;
-  mode: string;
+  lesson_id: number | null;
+  mode: PracticeMode;
   started_at: string;
   finished_at: string;
   score: number;
